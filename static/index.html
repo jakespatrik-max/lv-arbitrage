@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LV Arbitrage — vyhledávač podhodnocených kabelek</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <header class="header">
+        <h1>👜 LV Arbitrage <span class="muted">— vyhledávač podhodnocených kabelek</span></h1>
+        <div class="stats-bar" id="stats-bar">Načítám…</div>
+    </header>
+
+    <nav class="tabs" id="category-tabs">
+        <button class="tab active" data-category="all">Vše</button>
+        <button class="tab" data-category="opportunities">💎 Příležitosti</button>
+        <button class="tab" data-category="favorites">♡ Oblíbené</button>
+        <button class="tab" data-category="dismissed">🚫 Vyřazené</button>
+    </nav>
+
+    <div class="toolbar">
+        <div class="sort-group">
+            <button class="sort-btn active" data-sort="arbitrage_desc">Nejlepší deal</button>
+            <button class="sort-btn" data-sort="newest">Nejnovější</button>
+            <button class="sort-btn" data-sort="price_asc">Nejnižší cena</button>
+            <button class="sort-btn" data-sort="price_desc">Nejvyšší cena</button>
+        </div>
+
+        <div class="source-group">
+            <span class="muted">Zdroj:</span>
+            <select id="source-filter">
+                <option value="">Vše</option>
+            </select>
+        </div>
+
+        <button id="filters-toggle" class="btn-secondary">☰ Filtry</button>
+    </div>
+
+    <aside class="filters-panel" id="filters-panel">
+        <div class="filter-section">
+            <h3>Model</h3>
+            <div class="filter-options" id="model-filter">
+                <label><input type="radio" name="model" value="" checked> Všechny</label>
+            </div>
+        </div>
+
+        <div class="filter-section">
+            <h3>Min. arbitrážní potenciál</h3>
+            <div class="filter-options">
+                <label><input type="radio" name="min_arbitrage" value="0" checked> Vše</label>
+                <label><input type="radio" name="min_arbitrage" value="0.10"> 10 %+</label>
+                <label><input type="radio" name="min_arbitrage" value="0.20"> 20 %+</label>
+                <label><input type="radio" name="min_arbitrage" value="0.30"> 30 %+</label>
+                <label><input type="radio" name="min_arbitrage" value="0.50"> 50 %+</label>
+            </div>
+        </div>
+
+        <div class="filter-section">
+            <h3>Max. riziko padělku</h3>
+            <div class="filter-options">
+                <label><input type="radio" name="max_risk" value="1.0"> Vše</label>
+                <label><input type="radio" name="max_risk" value="0.55" checked> Střední (default)</label>
+                <label><input type="radio" name="max_risk" value="0.30"> Nízké (jen důvěryhodné)</label>
+            </div>
+        </div>
+
+        <button class="btn-primary" id="apply-filters">Použít</button>
+        <button class="btn-secondary" id="reset-filters">Resetovat</button>
+    </aside>
+
+    <main id="results">
+        <div class="loading">Načítám…</div>
+    </main>
+
+    <button id="load-more" class="btn-load-more" style="display:none;">Načíst další</button>
+
+    <!-- Detail modal -->
+    <div class="modal" id="detail-modal" style="display:none;">
+        <div class="modal-content">
+            <button class="modal-close" id="modal-close">×</button>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>

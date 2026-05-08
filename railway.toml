@@ -1,0 +1,17 @@
+# Railway konfigurace
+# Dokumentace: https://docs.railway.com/reference/config-as-code
+
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+# Spustí web server. Release fáze v Procfile init-ne DB.
+startCommand = "uvicorn src.api.app:app --host 0.0.0.0 --port $PORT"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+# Persistent volume pro SQLite databázi.
+# V Railway dashboardu vytvořit volume a mountnout na /data,
+# pak nastavit env proměnnou DB_PATH=/data/listings.db.
