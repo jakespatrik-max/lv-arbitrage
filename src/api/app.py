@@ -65,8 +65,11 @@ async def lifespan(app: FastAPI):
 
 def _start_refresh_scheduler():
     """Lazy-import APScheduler ať není require na test/dev když není v env."""
+    from datetime import datetime, timedelta, timezone
+
     from apscheduler.schedulers.background import BackgroundScheduler
     from apscheduler.triggers.cron import CronTrigger
+    from apscheduler.triggers.date import DateTrigger
 
     def _run_refresh():
         from src.cli import cmd_refresh
@@ -86,6 +89,21 @@ def _start_refresh_scheduler():
         max_instances=1,
         misfire_grace_time=3600,
     )
+
+    # Volitelný one-shot na bootu (přes RUN_REFRESH_ON_STARTUP=1) —
+    # použij k inicializaci DB ihned po prvním deploy. Nezapomeň pak
+    # env var vypnout, ať se to nespouští při každém restartu.
+    if os.environ.get("RUN_REFRESH_ON_STARTUP") == "1":
+        run_at = datetime.now(timezone.utc) + timedelta(seconds=15)
+        scheduler.add_job(
+            _run_refresh,
+            DateTrigger(run_date=run_at),
+            id="boot_refresh",
+            coalesce=True,
+            max_instances=1,
+        )
+        logger.info("Boot refresh scheduled at %s", run_at.isoformat())
+
     scheduler.start()
     return scheduler
 
