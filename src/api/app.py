@@ -14,7 +14,9 @@ Railway: viz Procfile / railway.toml
 from __future__ import annotations
 
 import json
+import logging
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
@@ -24,12 +26,71 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from src.config import MAX_COUNTERFEIT_RISK_FOR_ALERT, MODELS, SOURCES
-from src.db import get_conn
+from src.db import get_conn, init_db
+
+logger = logging.getLogger("api")
 
 # Cesta ke statickému frontendu (relativně od kořene projektu)
 STATIC_DIR = Path(__file__).parent.parent.parent / "static"
 
-app = FastAPI(title="LV Arbitrage", version="0.1.0")
+# Den-in-app schedule: protože Railway shared-volume mezi services není
+# k dispozici, refresh běží v procesu webu místo samostatné cron service.
+# Vypnout: SCHEDULE_REFRESH=0 v env.
+_SCHEDULE_REFRESH = os.environ.get("SCHEDULE_REFRESH", "1") != "0"
+_REFRESH_HOUR_UTC = int(os.environ.get("REFRESH_HOUR_UTC", "6"))
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup: init DB schema; spustit denní refresh scheduler."""
+    init_db()
+    logger.info("DB schema initialized")
+
+    scheduler = None
+    if _SCHEDULE_REFRESH:
+        try:
+            scheduler = _start_refresh_scheduler()
+            logger.info(
+                "Scheduled daily refresh at %02d:00 UTC", _REFRESH_HOUR_UTC
+            )
+        except Exception as e:
+            logger.warning("Refresh scheduler failed to start: %s", e)
+    yield
+    if scheduler is not None:
+        try:
+            scheduler.shutdown(wait=False)
+        except Exception:
+            pass
+
+
+def _start_refresh_scheduler():
+    """Lazy-import APScheduler ať není require na test/dev když není v env."""
+    from apscheduler.schedulers.background import BackgroundScheduler
+    from apscheduler.triggers.cron import CronTrigger
+
+    def _run_refresh():
+        from src.cli import cmd_refresh
+        try:
+            logger.info("Scheduled refresh: starting")
+            cmd_refresh()
+            logger.info("Scheduled refresh: done")
+        except Exception as exc:
+            logger.exception("Scheduled refresh failed: %s", exc)
+
+    scheduler = BackgroundScheduler(timezone="UTC")
+    scheduler.add_job(
+        _run_refresh,
+        CronTrigger(hour=_REFRESH_HOUR_UTC, minute=0),
+        id="daily_refresh",
+        coalesce=True,
+        max_instances=1,
+        misfire_grace_time=3600,
+    )
+    scheduler.start()
+    return scheduler
+
+
+app = FastAPI(title="LV Arbitrage", version="0.1.0", lifespan=lifespan)
 
 # CORS pro případné samostatné frontendy / Telegram bot serverless funkce
 app.add_middleware(
