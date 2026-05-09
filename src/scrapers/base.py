@@ -35,9 +35,12 @@ class BaseScraper(ABC):
         if not getattr(self, "source_id", None):
             raise ValueError("Podtřída musí nastavit source_id")
         self.config = SOURCES[self.source_id]
+        # Per-source timeout (default 8s); reduces wasted waiting when
+        # remote site throttles datacenter egress (typical for bazar.sk).
+        timeout_s = self.config.get("timeout_seconds", 8.0)
         self.client = httpx.Client(
             headers={"User-Agent": USER_AGENT},
-            timeout=20.0,
+            timeout=timeout_s,
             follow_redirects=True,
         )
         self._last_request_at: float = 0.0
@@ -79,7 +82,7 @@ class BaseScraper(ABC):
             time.sleep(delay - elapsed)
         self._last_request_at = time.monotonic()
 
-    def fetch(self, url: str, max_retries: int = 3) -> Optional[str]:
+    def fetch(self, url: str, max_retries: int = 2) -> Optional[str]:
         if not self.can_fetch(url):
             logger.warning(f"robots.txt zakazuje: {url}")
             return None
